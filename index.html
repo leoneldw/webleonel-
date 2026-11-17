@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#070914">
+  <title>Solar System 3D — Jelajahi Tata Surya</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #070914;
+      --muted: #9298b2;
+      --text: #f5f6ff;
+      --line: rgba(195, 199, 255, .13);
+      --accent: #b6a4ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      background:
+        radial-gradient(ellipse at 53% 44%, rgba(39, 38, 89, .30), transparent 49%),
+        radial-gradient(ellipse at 10% 100%, rgba(43, 26, 82, .18), transparent 45%),
+        var(--background);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .app {
+      width: min(1500px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 28px clamp(18px, 4vw, 58px) 25px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      isolation: isolate;
+    }
+
+    .stars, .stars::before, .stars::after {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background-image:
+        radial-gradient(1px 1px at 9% 19%, #fff 98%, transparent),
+        radial-gradient(1px 1px at 82% 13%, #bec5ff 98%, transparent),
+        radial-gradient(1.5px 1.5px at 94% 59%, #fff 98%, transparent),
+        radial-gradient(1px 1px at 31% 78%, #c3c6ff 98%, transparent),
+        radial-gradient(1px 1px at 58% 87%, #fff 98%, transparent),
+        radial-gradient(1px 1px at 70% 31%, #abb4ff 98%, transparent),
+        radial-gradient(1px 1px at 19% 51%, #fff 98%, transparent),
+        radial-gradient(1px 1px at 44% 11%, #c6bfff 98%, transparent);
+      background-size: 390px 330px;
+      opacity: .48;
+      content: "";
+    }
+
+    .stars::before { transform: translate(120px, 85px); opacity: .45; }
+    .stars::after { transform: translate(-75px, 170px); opacity: .35; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      position: relative;
+      z-index: 3;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(184, 162, 255, .34);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(164, 135, 255, .19), rgba(54, 46, 109, .12));
+      color: #d3c4ff;
+      font-size: 19px;
+      box-shadow: 0 0 22px rgba(147, 112, 255, .13);
+    }
+    .brand-name { font-size: 14px; font-weight: 720; letter-spacing: .025em; }
+    .brand-caption { margin-top: 3px; color: var(--muted); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .live-badge, .icon-button {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(19, 20, 39, .7);
+      color: #dfe0f4;
+      font-size: 11px;
+    }
+    .live-badge { padding: 0 13px; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #88e5bd; box-shadow: 0 0 10px #88e5bd; }
+    .icon-button { padding: 0 13px; cursor: pointer; transition: background .2s, border-color .2s; }
+    .icon-button:hover, .icon-button:focus-visible { border-color: rgba(182, 164, 255, .55); background: rgba(60, 49, 104, .55); outline: none; }
+
+    .intro { margin-top: clamp(29px, 5vh, 52px); position: relative; z-index: 2; }
+    .eyebrow { color: #b3a5f8; font-size: 10px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+    h1 { margin: 10px 0 8px; font-size: clamp(28px, 4vw, 43px); font-weight: 580; letter-spacing: -.055em; line-height: 1.1; }
+    h1 span { color: #bdafff; }
+    .intro p { margin: 0; color: #999db7; font-size: 13px; line-height: 1.7; }
+
+    .workspace {
+      min-height: 510px;
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 276px;
+      align-items: center;
+      gap: 18px;
+      margin: 4px 0 16px;
+    }
+
+    .scene-wrap {
+      min-width: 0;
+      display: grid;
+      place-items: center;
+      position: relative;
+      perspective: 1150px;
+      perspective-origin: 50% 48%;
+    }
+
+    .scene {
+      --scene-size: min(67vw, 650px);
+      width: var(--scene-size);
+      height: var(--scene-size);
+      min-width: 420px;
+      min-height: 420px;
+      max-width: 100%;
+      max-height: 100%;
+      position: relative;
+      transform: rotateX(58deg) rotateZ(-19deg);
+      transform-style: preserve-3d;
+      transition: transform .6s ease;
+    }
+
+    .scene::before {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border-radius: 50%;
+      transform: translateZ(-18px);
+      background: radial-gradient(ellipse, rgba(103, 89, 190, .12), transparent 69%);
+      filter: blur(15px);
+    }
+
+    .sun {
+      width: 37px;
+      height: 37px;
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      left: 50%;
+      border: 1px solid rgba(255, 227, 151, .8);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) rotateX(-58deg) rotateZ(19deg);
+      background: radial-gradient(circle at 34% 30%, #fff8cc 0 8%, #ffd56b 27%, #ff9a37 66%, #df4a28 100%);
+      box-shadow: 0 0 15px 5px rgba(255, 172, 70, .62), 0 0 42px 15px rgba(255, 132, 44, .29), 0 0 92px 32px rgba(255, 125, 68, .10);
+    }
+
+    .orbit {
+      --orbit: 90px;
+      --duration: 15s;
+      width: var(--orbit);
+      height: var(--orbit);
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      border: 1px solid rgba(180, 184, 232, .16);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transform-style: preserve-3d;
+      animation: orbit-spin var(--duration) linear infinite;
+    }
+    .orbit:nth-of-type(even) { border-color: rgba(180, 184, 232, .115); }
+    .orbit.paused { animation-play-state: paused; }
+    @keyframes orbit-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+    .planet {
+      --size: 10px;
+      width: var(--size);
+      height: var(--size);
+      position: absolute;
+      top: 50%;
+      left: 100%;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      transform: translate(-50%, -50%) rotateX(-58deg) rotateZ(19deg);
+      cursor: pointer;
+      appearance: none;
+      background: radial-gradient(circle at 33% 29%, var(--light), var(--color) 59%, var(--shade));
+      box-shadow: inset -2px -2px 4px rgba(0, 0, 0, .48), 0 0 11px color-mix(in srgb, var(--color), transparent 44%);
+      transition: box-shadow .2s, filter .2s;
+    }
+    .planet:hover, .planet:focus-visible, .planet.selected {
+      filter: brightness(1.3);
+      box-shadow: inset -2px -2px 4px rgba(0, 0, 0, .35), 0 0 0 5px color-mix(in srgb, var(--color), transparent 78%), 0 0 21px color-mix(in srgb, var(--color), transparent 14%);
+      outline: none;
+    }
+    .planet::after {
+      content: attr(aria-label);
+      position: absolute;
+      top: 50%;
+      left: calc(100% + 10px);
+      color: rgba(223, 225, 251, .79);
+      font-size: 9px;
+      font-weight: 650;
+      letter-spacing: .035em;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(-50%) rotateX(58deg) rotateZ(-19deg);
+      transition: opacity .2s;
+    }
+    .planet:hover::after, .planet:focus-visible::after, .planet.selected::after { opacity: 1; }
+    .mercury { --color: #c5b7a5; --light: #f0dfc7; --shade: #746a64; --size: 6px; }
+    .venus { --color: #e6b970; --light: #ffe3a2; --shade: #9c6038; --size: 9px; }
+    .earth { --color: #4a9cff; --light: #a7e5ff; --shade: #194784; --size: 10px; }
+    .mars { --color: #e46c4a; --light: #ffc08a; --shade: #773424; --size: 8px; }
+    .jupiter { --color: #d9a77d; --light: #f7dfb4; --shade: #8d5c46; --size: 21px; }
+    .saturn { --color: #e4ce8d; --light: #fff0bc; --shade: #96804e; --size: 17px; }
+    .saturn::before {
+      content: "";
+      width: 31px;
+      height: 8px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      border: 2px solid rgba(234, 213, 157, .76);
+      border-left-color: rgba(234, 213, 157, .34);
+      border-right-color: rgba(234, 213, 157, .34);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) rotate(-18deg);
+    }
+    .uranus { --color: #79d8d6; --light: #d1fffa; --shade: #397f8a; --size: 13px; }
+    .neptune { --color: #5579ee; --light: #a4baff; --shade: #233885; --size: 12px; }
+
+    .orbit[data-planet="mercury"] { --orbit: 72px; --duration: 8s; }
+    .orbit[data-planet="venus"] { --orbit: 112px; --duration: 12s; }
+    .orbit[data-planet="earth"] { --orbit: 157px; --duration: 16s; }
+    .orbit[data-planet="mars"] { --orbit: 207px; --duration: 21s; }
+    .orbit[data-planet="jupiter"] { --orbit: 285px; --duration: 32s; }
+    .orbit[data-planet="saturn"] { --orbit: 367px; --duration: 42s; }
+    .orbit[data-planet="uranus"] { --orbit: 449px; --duration: 53s; }
+    .orbit[data-planet="neptune"] { --orbit: 531px; --duration: 64s; }
+
+    .scene-hint {
+      position: absolute;
+      bottom: 3%;
+      left: 50%;
+      color: #787d9b;
+      font-size: 10px;
+      letter-spacing: .035em;
+      white-space: nowrap;
+      transform: translateX(-50%);
+    }
+
+    .info-card {
+      min-height: 356px;
+      padding: 22px 20px 19px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(195, 199, 255, .14);
+      border-radius: 20px;
+      background: linear-gradient(153deg, rgba(27, 29, 55, .91), rgba(13, 15, 31, .87));
+      box-shadow: 0 18px 65px rgba(0, 0, 0, .22), inset 0 1px rgba(255,255,255,.035);
+      backdrop-filter: blur(18px);
+    }
+    .info-card::before {
+      content: "";
+      width: 130px;
+      height: 130px;
+      position: absolute;
+      top: -85px;
+      right: -40px;
+      border-radius: 50%;
+      background: var(--planet-color, #b6a4ff);
+      filter: blur(75px);
+      opacity: .24;
+      pointer-events: none;
+    }
+    .card-label { color: #a5a9c2; font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    .planet-heading { display: flex; align-items: center; gap: 11px; margin: 16px 0 9px; }
+    .planet-emblem {
+      width: 33px;
+      height: 33px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, var(--emblem-light), var(--planet-color) 60%, var(--emblem-dark));
+      box-shadow: inset -3px -3px 6px rgba(0,0,0,.4), 0 0 18px color-mix(in srgb, var(--planet-color), transparent 55%);
+    }
+    .planet-heading h2 { margin: 0; font-size: 23px; font-weight: 590; letter-spacing: -.035em; }
+    .planet-subtitle { margin: 0 0 16px; color: #a1a5bf; font-size: 11px; }
+    .planet-description { min-height: 57px; margin: 0; color: #d1d2e1; font-size: 11px; line-height: 1.7; }
+    .stat-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-top: 18px; }
+    .stat { padding-top: 10px; border-top: 1px solid rgba(195, 199, 255, .11); }
+    .stat-label { display: block; color: #898ea9; font-size: 9px; }
+    .stat-value { display: block; margin-top: 5px; color: #f0effa; font-size: 11px; font-weight: 620; }
+    .fact { margin-top: 15px; padding: 10px 11px; border-radius: 10px; background: rgba(163, 145, 255, .08); color: #c8c0f1; font-size: 10px; line-height: 1.55; }
+    .fact strong { color: #e2dafe; }
+
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(195, 199, 255, .1);
+      position: relative;
+      z-index: 2;
+    }
+    .planet-nav { display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+    .planet-nav::-webkit-scrollbar { display: none; }
+    .nav-button {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      background: transparent;
+      cursor: pointer;
+      transition: background .18s, border-color .18s;
+    }
+    .nav-button:hover, .nav-button:focus-visible { border-color: var(--line); background: rgba(255,255,255,.055); outline: none; }
+    .nav-button.active { border-color: rgba(182, 164, 255, .27); background: rgba(163, 145, 255, .12); }
+    .nav-dot { width: var(--nav-size); height: var(--nav-size); border-radius: 50%; background: radial-gradient(circle at 34% 29%, var(--nav-light), var(--nav-color) 65%, var(--nav-dark)); box-shadow: 0 0 8px color-mix(in srgb, var(--nav-color), transparent 50%); }
+    .controls { display: flex; align-items: center; justify-content: flex-end; gap: 13px; }
+    .speed-control { display: flex; align-items: center; gap: 9px; color: #a2a6bf; font-size: 10px; white-space: nowrap; }
+    input[type="range"] { width: 87px; height: 3px; accent-color: #b9a7ff; cursor: pointer; }
+    .speed-value { min-width: 28px; color: #e2dcff; }
+    .watermark {
+      position: fixed;
+      right: 22px;
+      bottom: 16px;
+      z-index: 5;
+      padding: 9px 13px;
+      border: 1px solid rgba(195, 176, 255, .48);
+      border-radius: 999px;
+      background: rgba(24, 20, 48, .92);
+      box-shadow: 0 0 22px rgba(153, 120, 255, .28), 0 5px 18px rgba(0, 0, 0, .35);
+      color: #eee8ff;
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .09em;
+      text-shadow: 0 0 12px rgba(194, 169, 255, .7);
+      pointer-events: none;
+    }
+
+    @media (min-width: 1400px) {
+      .scene { --scene-size: 680px; }
+    }
+    @media (max-width: 930px) {
+      .workspace { grid-template-columns: minmax(0, 1fr) 248px; gap: 8px; }
+      .scene { --scene-size: min(68vw, 560px); min-width: 390px; min-height: 390px; }
+      .orbit[data-planet="uranus"] { --orbit: 410px; }
+      .orbit[data-planet="neptune"] { --orbit: 475px; }
+      .info-card { padding: 19px 16px; }
+      .bottom-bar { align-items: flex-start; flex-direction: column; }
+      .controls { width: 100%; justify-content: space-between; }
+    }
+    @media (max-width: 650px) {
+      .app { padding: 19px 17px 58px; }
+      .brand-mark { width: 34px; height: 34px; }
+      .live-badge { padding: 0 10px; font-size: 10px; }
+      .top-actions .icon-button { width: 36px; padding: 0; font-size: 0; }
+      .top-actions .icon-button::first-letter { font-size: 14px; }
+      .intro { margin-top: 33px; }
+      .intro p { max-width: 335px; font-size: 12px; }
+      .workspace { min-height: 0; grid-template-columns: 1fr; gap: 1px; margin: 0 0 18px; }
+      .scene-wrap { height: min(103vw, 410px); margin: 0 -18px; overflow: hidden; }
+      .scene { --scene-size: min(94vw, 390px); min-width: 330px; min-height: 330px; }
+      .orbit[data-planet="mercury"] { --orbit: 50px; }
+      .orbit[data-planet="venus"] { --orbit: 78px; }
+      .orbit[data-planet="earth"] { --orbit: 108px; }
+      .orbit[data-planet="mars"] { --orbit: 142px; }
+      .orbit[data-planet="jupiter"] { --orbit: 194px; }
+      .orbit[data-planet="saturn"] { --orbit: 248px; }
+      .orbit[data-planet="uranus"] { --orbit: 302px; }
+      .orbit[data-planet="neptune"] { --orbit: 354px; }
+      .scene-hint { bottom: 2%; font-size: 9px; }
+      .info-card { min-height: 0; padding: 17px 17px 15px; }
+      .planet-heading { margin-top: 11px; }
+      .planet-description { min-height: 0; }
+      .stat-list { margin-top: 13px; }
+      .fact { margin-top: 12px; }
+      .bottom-bar { gap: 10px; padding-top: 12px; }
+      .planet-nav { width: 100%; justify-content: space-between; }
+      .watermark { right: 12px; bottom: 10px; padding: 8px 11px; font-size: 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+      .orbit { animation-duration: 120s !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stars" aria-hidden="true"></div>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <div class="brand-name">ASTRA EXPLORER</div>
+          <div class="brand-caption">Interaktif · Tata Surya</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="live-badge"><span class="live-dot"></span> Simulasi aktif</span>
+        <button class="icon-button" id="viewButton" type="button" aria-label="Ubah sudut pandang" title="Ubah sudut pandang">◉ &nbsp; Sudut 3D</button>
+      </div>
+    </header>
+
+    <section class="intro" aria-labelledby="page-title">
+      <div class="eyebrow">Jelajahi lingkungan kosmik kita</div>
+      <h1 id="page-title">Satu bintang, <span>delapan dunia.</span></h1>
+      <p>Pilih planet untuk mengenal tetangga kosmik kita. Tekan dan jelajahi.</p>
+    </section>
+
+    <section class="workspace" aria-label="Model dan informasi tata surya">
+      <div class="scene-wrap">
+        <div class="scene" id="scene" aria-label="Model tata surya dengan orbit planet">
+          <div class="sun" role="img" aria-label="Matahari"></div>
+          <div class="orbit" data-planet="mercury"><button class="planet mercury" data-id="mercury" type="button" aria-label="Merkurius"></button></div>
+          <div class="orbit" data-planet="venus"><button class="planet venus" data-id="venus" type="button" aria-label="Venus"></button></div>
+          <div class="orbit" data-planet="earth"><button class="planet earth" data-id="earth" type="button" aria-label="Bumi"></button></div>
+          <div class="orbit" data-planet="mars"><button class="planet mars" data-id="mars" type="button" aria-label="Mars"></button></div>
+          <div class="orbit" data-planet="jupiter"><button class="planet jupiter" data-id="jupiter" type="button" aria-label="Jupiter"></button></div>
+          <div class="orbit" data-planet="saturn"><button class="planet saturn" data-id="saturn" type="button" aria-label="Saturnus"></button></div>
+          <div class="orbit" data-planet="uranus"><button class="planet uranus" data-id="uranus" type="button" aria-label="Uranus"></button></div>
+          <div class="orbit" data-planet="neptune"><button class="planet neptune" data-id="neptune" type="button" aria-label="Neptunus"></button></div>
+        </div>
+        <div class="scene-hint">Pilih planet · Orbit dan ukuran tidak berskala</div>
+      </div>
+
+      <aside class="info-card" id="infoCard" aria-live="polite">
+        <div class="card-label">Profil planet</div>
+        <div class="planet-heading">
+          <div class="planet-emblem" id="planetEmblem" aria-hidden="true"></div>
+          <h2 id="planetName">Bumi</h2>
+        </div>
+        <p class="planet-subtitle" id="planetSubtitle">Planet ketiga dari Matahari</p>
+        <p class="planet-description" id="planetDescription">Rumah kita yang istimewa—satu-satunya dunia yang diketahui memiliki air cair di permukaan dan kehidupan.</p>
+        <div class="stat-list">
+          <div class="stat"><span class="stat-label">Jarak dari Matahari</span><strong class="stat-value" id="planetDistance">149,6 juta km</strong></div>
+          <div class="stat"><span class="stat-label">Diameter</span><strong class="stat-value" id="planetDiameter">12.742 km</strong></div>
+          <div class="stat"><span class="stat-label">Lama satu hari</span><strong class="stat-value" id="planetDay">23 jam 56 menit</strong></div>
+          <div class="stat"><span class="stat-label">Lama satu tahun</span><strong class="stat-value" id="planetYear">365,25 hari</strong></div>
+        </div>
+        <div class="fact" id="planetFact"><strong>Fakta menarik</strong> · Sekitar 71% permukaan Bumi tertutup air.</div>
+      </aside>
+    </section>
+
+    <footer class="bottom-bar">
+      <nav class="planet-nav" aria-label="Pilih planet">
+        <button class="nav-button" type="button" data-id="mercury" aria-label="Merkurius"><span class="nav-dot" style="--nav-size:7px;--nav-color:#c5b7a5;--nav-light:#f0dfc7;--nav-dark:#746a64"></span></button>
+        <button class="nav-button" type="button" data-id="venus" aria-label="Venus"><span class="nav-dot" style="--nav-size:9px;--nav-color:#e6b970;--nav-light:#ffe3a2;--nav-dark:#9c6038"></span></button>
+        <button class="nav-button active" type="button" data-id="earth" aria-label="Bumi"><span class="nav-dot" style="--nav-size:10px;--nav-color:#4a9cff;--nav-light:#a7e5ff;--nav-dark:#194784"></span></button>
+        <button class="nav-button" type="button" data-id="mars" aria-label="Mars"><span class="nav-dot" style="--nav-size:8px;--nav-color:#e46c4a;--nav-light:#ffc08a;--nav-dark:#773424"></span></button>
+        <button class="nav-button" type="button" data-id="jupiter" aria-label="Jupiter"><span class="nav-dot" style="--nav-size:15px;--nav-color:#d9a77d;--nav-light:#f7dfb4;--nav-dark:#8d5c46"></span></button>
+        <button class="nav-button" type="button" data-id="saturn" aria-label="Saturnus"><span class="nav-dot" style="--nav-size:13px;--nav-color:#e4ce8d;--nav-light:#fff0bc;--nav-dark:#96804e"></span></button>
+        <button class="nav-button" type="button" data-id="uranus" aria-label="Uranus"><span class="nav-dot" style="--nav-size:11px;--nav-color:#79d8d6;--nav-light:#d1fffa;--nav-dark:#397f8a"></span></button>
+        <button class="nav-button" type="button" data-id="neptune" aria-label="Neptunus"><span class="nav-dot" style="--nav-size:10px;--nav-color:#5579ee;--nav-light:#a4baff;--nav-dark:#233885"></span></button>
+      </nav>
+      <div class="controls">
+        <label class="speed-control" for="speedRange">Kecepatan orbit
+          <input id="speedRange" type="range" min="0.5" max="3" step="0.5" value="1">
+          <span class="speed-value" id="speedValue">1×</span>
+        </label>
+        <button class="icon-button" id="playButton" type="button" aria-label="Jeda animasi" aria-pressed="false">Ⅱ &nbsp; Jeda</button>
+      </div>
+    </footer>
+  </main>
+  <div class="watermark">leonel dharma wijaya</div>
+
+  <script>
+    const planets = {
+      mercury: {
+        name: "Merkurius", ordinal: "Planet pertama dari Matahari",
+        description: "Dunia terkecil dan terdekat dengan Matahari. Permukaannya berbatu, penuh kawah, dan mengalami perubahan suhu ekstrem.",
+        distance: "57,9 juta km", diameter: "4.879 km", day: "58,6 hari Bumi", year: "88 hari Bumi",
+        fact: "Satu hari Matahari di Merkurius berlangsung sekitar 176 hari Bumi.",
+        color: "#c5b7a5", light: "#f0dfc7", dark: "#746a64"
+      },
+      venus: {
+        name: "Venus", ordinal: "Planet kedua dari Matahari",
+        description: "Planet berbatu yang diselimuti atmosfer karbon dioksida tebal dan awan asam sulfat. Permukaannya adalah yang terpanas di tata surya.",
+        distance: "108,2 juta km", diameter: "12.104 km", day: "243 hari Bumi", year: "225 hari Bumi",
+        fact: "Venus berputar berlawanan arah dibandingkan sebagian besar planet.",
+        color: "#e6b970", light: "#ffe3a2", dark: "#9c6038"
+      },
+      earth: {
+        name: "Bumi", ordinal: "Planet ketiga dari Matahari",
+        description: "Rumah kita yang istimewa—satu-satunya dunia yang diketahui memiliki air cair di permukaan dan kehidupan.",
+        distance: "149,6 juta km", diameter: "12.742 km", day: "23 jam 56 menit", year: "365,25 hari",
+        fact: "Sekitar 71% permukaan Bumi tertutup air.",
+        color: "#4a9cff", light: "#a7e5ff", dark: "#194784"
+      },
+      mars: {
+        name: "Mars", ordinal: "Planet keempat dari Matahari",
+        description: "Dijuluki Planet Merah karena debu kaya besi oksida. Mars memiliki gunung berapi raksasa, lembah luas, dan jejak air purba.",
+        distance: "227,9 juta km", diameter: "6.779 km", day: "24 jam 37 menit", year: "687 hari Bumi",
+        fact: "Olympus Mons di Mars adalah salah satu gunung berapi terbesar yang diketahui.",
+        color: "#e46c4a", light: "#ffc08a", dark: "#773424"
+      },
+      jupiter: {
+        name: "Jupiter", ordinal: "Planet kelima dari Matahari",
+        description: "Raksasa gas terbesar di tata surya, dengan pita awan warna-warni serta badai besar yang berputar di atmosfernya.",
+        distance: "778,6 juta km", diameter: "139.820 km", day: "9 jam 56 menit", year: "11,86 tahun Bumi",
+        fact: "Bintik Merah Besar adalah badai raksasa yang telah diamati selama berabad-abad.",
+        color: "#d9a77d", light: "#f7dfb4", dark: "#8d5c46"
+      },
+      saturn: {
+        name: "Saturnus", ordinal: "Planet keenam dari Matahari",
+        description: "Raksasa gas yang terkenal dengan sistem cincin megah dari bongkahan es dan batuan, serta memiliki banyak bulan.",
+        distance: "1,43 miliar km", diameter: "116.460 km", day: "10 jam 42 menit", year: "29,45 tahun Bumi",
+        fact: "Cincinnya sangat lebar, tetapi rata-rata hanya setebal sekitar 10 meter.",
+        color: "#e4ce8d", light: "#fff0bc", dark: "#96804e"
+      },
+      uranus: {
+        name: "Uranus", ordinal: "Planet ketujuh dari Matahari",
+        description: "Raksasa es berwarna biru kehijauan. Sumbu rotasinya sangat miring, membuatnya seolah berguling saat mengorbit Matahari.",
+        distance: "2,87 miliar km", diameter: "50.724 km", day: "17 jam 14 menit", year: "84 tahun Bumi",
+        fact: "Uranus memiliki kemiringan sumbu sekitar 98 derajat.",
+        color: "#79d8d6", light: "#d1fffa", dark: "#397f8a"
+      },
+      neptune: {
+        name: "Neptunus", ordinal: "Planet kedelapan dari Matahari",
+        description: "Dunia terjauh yang dikenal di tata surya. Raksasa es biru ini memiliki atmosfer sangat dinamis dan angin yang amat kencang.",
+        distance: "4,50 miliar km", diameter: "49.244 km", day: "16 jam 6 menit", year: "164,8 tahun Bumi",
+        fact: "Neptunus ditemukan melalui prediksi matematika sebelum diamati langsung.",
+        color: "#5579ee", light: "#a4baff", dark: "#233885"
+      }
+    };
+
+    const infoCard = document.getElementById("infoCard");
+    const planetEmblem = document.getElementById("planetEmblem");
+    const orbitElements = Array.from(document.querySelectorAll(".orbit"));
+    const playButton = document.getElementById("playButton");
+    const speedRange = document.getElementById("speedRange");
+    let selectedPlanet = "earth";
+    let isPaused = false;
+    let speed = 1;
+
+    function selectPlanet(id) {
+      const planet = planets[id];
+      if (!planet) return;
+      selectedPlanet = id;
+      document.getElementById("planetName").textContent = planet.name;
+      document.getElementById("planetSubtitle").textContent = planet.ordinal;
+      document.getElementById("planetDescription").textContent = planet.description;
+      document.getElementById("planetDistance").textContent = planet.distance;
+      document.getElementById("planetDiameter").textContent = planet.diameter;
+      document.getElementById("planetDay").textContent = planet.day;
+      document.getElementById("planetYear").textContent = planet.year;
+      document.getElementById("planetFact").innerHTML = "<strong>Fakta menarik</strong> · " + planet.fact;
+      infoCard.style.setProperty("--planet-color", planet.color);
+      planetEmblem.style.setProperty("--planet-color", planet.color);
+      planetEmblem.style.setProperty("--emblem-light", planet.light);
+      planetEmblem.style.setProperty("--emblem-dark", planet.dark);
+      document.querySelectorAll("[data-id]").forEach((item) => {
+        const active = item.dataset.id === id;
+        if (item.classList.contains("planet")) {
+          item.classList.toggle("selected", active);
+          if (active) item.setAttribute("aria-current", "true");
+          else item.removeAttribute("aria-current");
+        } else {
+          item.classList.toggle("active", active);
+          if (active) item.setAttribute("aria-current", "true");
+          else item.removeAttribute("aria-current");
+        }
+      });
+    }
+
+    function updateMotion() {
+      orbitElements.forEach((orbit) => {
+        orbit.classList.toggle("paused", isPaused);
+        const baseDuration = parseFloat(getComputedStyle(orbit).getPropertyValue("--duration"));
+        orbit.style.animationDuration = (baseDuration / speed) + "s";
+      });
+      playButton.innerHTML = isPaused ? "▶ &nbsp; Putar" : "Ⅱ &nbsp; Jeda";
+      playButton.setAttribute("aria-label", isPaused ? "Putar animasi" : "Jeda animasi");
+      playButton.setAttribute("aria-pressed", String(isPaused));
+    }
+
+    document.querySelectorAll(".planet, .nav-button").forEach((item) => {
+      item.addEventListener("click", () => selectPlanet(item.dataset.id));
+    });
+
+    document.querySelectorAll(".planet").forEach((item) => {
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectPlanet(item.dataset.id);
+        }
+      });
+    });
+
+    playButton.addEventListener("click", () => {
+      isPaused = !isPaused;
+      updateMotion();
+    });
+
+    speedRange.addEventListener("input", () => {
+      speed = Number(speedRange.value);
+      document.getElementById("speedValue").textContent = speed + "×";
+      updateMotion();
+    });
+
+    document.getElementById("viewButton").addEventListener("click", () => {
+      const scene = document.getElementById("scene");
+      const tilted = scene.dataset.view !== "top";
+      scene.dataset.view = tilted ? "top" : "tilt";
+      scene.style.transform = tilted ? "rotateX(0deg) rotateZ(0deg)" : "rotateX(58deg) rotateZ(-19deg)";
+      document.getElementById("viewButton").innerHTML = tilted ? "◉ &nbsp; Sudut miring" : "◉ &nbsp; Sudut atas";
+    });
+
+    selectPlanet(selectedPlanet);
+    updateMotion();
+  </script>
+</body>
+</html>
